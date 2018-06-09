@@ -1,0 +1,86 @@
+buildscript{
+    repositories{
+        jcenter()
+        maven{
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+    }
+    
+    dependencies{
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'maven-publish'
+
+group = "elysiumwarn.javacheck"
+ext.buildnumber = 0
+project.buildnumber = System.getenv('BUILD_NUMBER') == null ? "CUSTOM" : System.getenv('BUILD_NUMBER')
+
+version = project.hasProperty("mavendir") ? "v2.0-b"+project.buildnumber : "MC-UNIVERSAL  v2.0"
+String archiveSuffix = (project.hasProperty("mavendir") ? "-" : "  ")+version+".jar"
+
+minecraft{
+    version = "1.12.2-14.23.4.2705"
+    runDir = "run"
+    mappings = "snapshot_20171003"
+    makeObfSourceJar = false
+}
+
+task java7Jar(type: Jar, dependsOn: "jar"){
+    from sourceSets.main.output
+    
+    manifest{
+        attributes 'TweakClass': 'elysiumwarn.javacheck.Java7Checker'
+    }
+    
+    archiveName = "Java7Checker"+archiveSuffix
+}
+
+task java8Jar(type: Jar, dependsOn: "jar"){
+    from sourceSets.main.output
+    
+    manifest{
+        attributes 'TweakClass': 'elysiumwarn.javacheck.Java8Checker'
+    }
+    
+    archiveName = "Java8Checker"+archiveSuffix
+}
+
+task shadeJar(type: Jar, dependsOn: "jar"){
+    from(sourceSets.main.output){
+        exclude "mcmod.info"
+    }
+    
+    archiveName = "JavaCheckerShade"+archiveSuffix
+}
+
+jar.enabled = false
+
+reobf{
+    java7Jar{ classpath = sourceSets.main.compileClasspath }
+    java8Jar{ classpath = sourceSets.main.compileClasspath }
+    shadeJar{ classpath = sourceSets.main.compileClasspath }
+}
+
+reobfJar{
+    enabled = false
+}
+
+publishing{
+    tasks.publish.dependsOn 'build'
+    
+    publications{
+        mavenJava(MavenPublication){
+            artifact shadeJar
+        }
+    }
+    
+    repositories{
+        if (project.hasProperty("mavendir")){
+            maven { url mavendir }
+        }
+    }
+}
